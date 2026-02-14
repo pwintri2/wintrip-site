@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Aanmelden | Wintrip</title>
+
+  <link rel="stylesheet" href="/assets/style.css?v=2">
+  <link rel="stylesheet" href="/leden/leden.css?v=1">
+</head>
+<body class="bg">
+  <header class="topbar">
+    <img src="/assets/logo.png" class="logo" alt="Wintrip logo">
+    <div class="titleWrap">
+      <div class="title">Aanmelden</div>
+      <div class="subtitle">Klein koor</div>
+    </div>
+
+    <nav class="menu">
+      <a class="menuBtn ghost" href="/dashboard.html">Dashboard</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="card">
+      <div class="cardTitle">Meld je aan</div>
+
+      <label>Naam</label>
+      <input id="naam" type="text" placeholder="Jouw naam">
+
+      <label>E-mail</label>
+      <input id="email" type="email" placeholder="jij@voorbeeld.nl">
+
+      <label>Vertel iets over jezelf</label>
+      <textarea id="over" rows="6" placeholder="Bijv. zangervaring, beschikbaarheid, motivatie..."></textarea>
+
+      <label>Stemsoort</label>
+      <select id="stem">
+        <option value="">Kies…</option>
+        <option>Sopraan</option>
+        <option>Alt</option>
+        <option>Tenor</option>
+        <option>Bas</option>
+      </select>
+
+      <label>Foto</label>
+      <input id="foto" type="file" accept="image/*">
+
+      <label>Bestanden (optioneel)</label>
+      <input id="bestanden" type="file" multiple>
+
+      <div class="modalBtns" style="justify-content:flex-end; margin-top:12px;">
+        <button id="sendBtn" class="btn primary">Verzenden</button>
+      </div>
+
+      <div id="msg" class="small" style="margin-top:10px;"></div>
+    </div>
+  </main>
+
+<script>
+  const msg = document.getElementById("msg");
+
+  document.getElementById("sendBtn").addEventListener("click", async () => {
+    msg.textContent = "";
+    const fd = new FormData();
+    fd.append("naam", document.getElementById("naam").value.trim());
+    fd.append("email", document.getElementById("email").value.trim());
+    fd.append("over", document.getElementById("over").value.trim());
+    fd.append("stem", document.getElementById("stem").value);
+
+    const foto = document.getElementById("foto").files[0];
+    if (foto) fd.append("foto", foto);
+
+    const files = Array.from(document.getElementById("bestanden").files || []);
+    files.forEach(f => fd.append("bestanden", f));
+
+    if (!fd.get("naam") || !fd.get("email")) {
+      msg.textContent = "Naam en e-mail zijn verplicht.";
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/leden/aanmelden", { method:"POST", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+
+      if (data.mail_error) {
+        msg.textContent = "Aanmelding opgeslagen, maar mailen lukte nog niet (SMTP nog instellen).";
+      } else {
+        msg.textContent = "Verzonden! Dankjewel 🙂";
+      }
+
+      // reset
+      ["naam","email","over"].forEach(id => document.getElementById(id).value = "");
+      document.getElementById("stem").value = "";
+      document.getElementById("foto").value = "";
+      document.getElementById("bestanden").value = "";
+    } catch(err) {
+      msg.textContent = err.message || String(err);
+    }
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,89 @@
+/* kleine uitbreidingen op /assets/style.css */
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 18px;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .grid2 { grid-template-columns: 1fr; }
+}
+
+.panelTitle {
+  font-weight: 700;
+  margin: 8px 0 12px;
+}
+
+.tileGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.tileCard {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.tileHead {
+  background: #0b2b5c; /* donkerblauw zoals je vroeg */
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tileHeadTitle {
+  font-weight: 700;
+}
+
+.tileBody {
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.tilePhoto {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  object-fit: cover;
+  max-height: 220px;
+}
+
+.kv {
+  font-size: 14px;
+  opacity: 0.95;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.iconBtn {
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.06);
+  padding: 8px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.iconBtn.primary {
+  border-color: rgba(255,255,255,0.28);
+}
+
+.small {
+  font-size: 12px;
+  opacity: 0.85;
+}

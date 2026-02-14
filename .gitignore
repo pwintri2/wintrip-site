@@ -1,0 +1,4 @@
+
+# ignore old exports / large bundles
+_old_dashboard_files/
+koorsite/klein-koor_files/

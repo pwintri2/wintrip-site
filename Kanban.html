@@ -1,0 +1,904 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <title>Kanban bordje</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      /* Excel-achtige stijl */
+      --excel-header-bg:#1f6f43;
+      --excel-header-fg:#ffffff;
+      --grid-border:#d1d5db;
+      --bg:#f3f4f6;
+      --sheet-bg:#ffffff;
+
+      /* Post-it kleuren */
+      --note-yellow:#fffb8f;
+      --note-yellow-hover:#fff37a;
+      --note-border:#e2d66b;
+      --note-green:#1f7a44;           /* donkergroen voor Done */
+      --note-green-text:#ecfdf5;
+
+      --text:#111827;
+      --muted:#6b7280;
+      --accent:#4f46e5;
+      --danger:#b91c1c;
+      --warning:#b45309;
+
+      --shadow:0 1px 2px rgba(0,0,0,.05), 0 6px 18px rgba(0,0,0,.05);
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:var(--bg); color:var(--text);
+    }
+
+    /* Bovenbalk */
+    .topbar{
+      display:flex; align-items:center; gap:12px;
+      background:#fff; border-bottom:1px solid #e5e7eb;
+      padding:10px 12px; position:sticky; top:0; z-index:50;
+    }
+    .app-title{ font-weight:700; }
+    .spacer{ flex:1; }
+
+    /* Bestand menu */
+    .menu{
+      position:relative;
+    }
+    .menu > button{
+      border:1px solid #e5e7eb; background:#fff; padding:8px 10px; border-radius:8px; cursor:pointer; font-weight:600;
+    }
+    .menu-list{
+      position:absolute; top:105%; left:0; min-width:240px; background:#fff; border:1px solid #e5e7eb; border-radius:12px;
+      box-shadow:var(--shadow); padding:6px; display:none;
+    }
+    .menu.open .menu-list{ display:block; }
+    .menu-list button, .menu-list label{
+      width:100%; text-align:left; padding:8px 10px; cursor:pointer; border:none; background:transparent; border-radius:8px; display:flex; gap:8px; align-items:center;
+    }
+    .menu-list button:hover, .menu-list label:hover{ background:#f3f4f6; }
+
+    /* Zoek & sorteer */
+    .toolbar{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    }
+    .input, select{
+      border:1px solid #e5e7eb; border-radius:8px; padding:8px 10px; font:inherit; background:#fff;
+    }
+    .btn{ border:1px solid #e5e7eb; background:#fff; padding:8px 10px; border-radius:8px; cursor:pointer; font-weight:600; }
+    .btn.primary{ background:var(--accent); color:#fff; border-color:var(--accent); }
+    .btn.danger{ background:var(--danger); color:#fff; border-color:var(--danger); }
+    .btn.warning{ background:var(--warning); color:#fff; border-color:var(--warning); }
+
+    /* “Werkblad” container */
+    .sheet{
+      margin:14px; background:var(--sheet-bg); border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; box-shadow:var(--shadow);
+    }
+    .sheet-header{
+      display:grid; grid-auto-flow:column; grid-auto-columns:minmax(280px, 1fr);
+      background:var(--excel-header-bg); color:var(--excel-header-fg);
+      border-bottom:1px solid #145a33;
+    }
+    .col-head{
+      padding:10px 12px; font-weight:700; display:flex; align-items:center; gap:10px; position:relative;
+      border-right:1px solid rgba(255,255,255,.25);
+    }
+    .col-head:last-child{ border-right:none; }
+    .col-head .wip{
+      margin-left:auto; font-weight:600; font-size:12px; background:rgba(255,255,255,.2); padding:2px 6px; border-radius:6px; cursor:pointer;
+    }
+    .col-head .add{
+      border:1px solid rgba(255,255,255,.3); color:#fff; background:transparent; padding:2px 8px; border-radius:6px; cursor:pointer; font-weight:700;
+    }
+    .col-head .add:hover{ background:rgba(255,255,255,.15); }
+
+    .sheet-body{
+      display:grid; grid-auto-flow:column; grid-auto-columns:minmax(280px, 1fr); min-height:66vh; overflow:auto;
+    }
+    .column{
+      position:relative; padding:12px; border-right:1px solid var(--grid-border);
+      background:
+        repeating-linear-gradient(to bottom, transparent 0px, transparent 44px, rgba(0,0,0,.045) 45px),
+        repeating-linear-gradient(to right,  transparent 0px, transparent 129px, rgba(0,0,0,.045) 130px);
+    }
+    .column:last-child{ border-right:none; }
+    .cards{ display:flex; flex-direction:column; gap:12px; min-height:100%; transition:background 120ms ease; }
+    .cards.highlight{ background:rgba(79,70,229,.08); outline:2px dashed rgba(79,70,229,.35); outline-offset:-6px; }
+
+    /* Post-its */
+    .card{
+      width:150px; height:150px;
+      background:var(--note-yellow);
+      border:1px solid var(--note-border);
+      border-radius:8px; box-shadow:0 2px 0 rgba(0,0,0,.06);
+      cursor:grab; user-select:none; padding:10px;
+      display:flex; flex-direction:column; gap:6px; justify-content:space-between;
+      transition:background 100ms ease, transform 100ms ease, color 100ms ease;
+    }
+    .card.done{
+      background:var(--note-green); border-color:#0e5132; color:var(--note-green-text);
+    }
+    .card:hover{ background:var(--note-yellow-hover); }
+    .card.done:hover{ filter:brightness(1.08); }
+    .card.dragging{ opacity:.7; transform:rotate(1deg); cursor:grabbing; }
+    .card .name{ font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .card .para{ font-size:13px; line-height:1.2; overflow:hidden; display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical; }
+    .card .dates{ font-size:11px; color:var(--muted); display:flex; flex-direction:column; gap:2px; }
+    .card.done .dates{ color:#d1fae5; }
+    .card .tools{ display:flex; gap:6px; justify-content:flex-end; }
+    .icon-btn{
+      border:1px solid #e5e7eb; background:#fff; padding:4px 6px; font-size:12px; border-radius:8px; cursor:pointer;
+    }
+    .card.done .icon-btn{ background:rgba(255,255,255,.85); }
+    .hidden{ display:none !important; }
+
+    /* Modals */
+    .modal-backdrop{
+      position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; align-items:center; justify-content:center; z-index:100;
+    }
+    .modal{ background:#fff; width:min(520px, 92vw); border-radius:12px; box-shadow:var(--shadow); overflow:hidden; }
+    .modal header{ padding:12px 14px; border-bottom:1px solid #e5e7eb; font-weight:700; }
+    .modal .content{ padding:12px 14px; display:flex; flex-direction:column; gap:10px; }
+    .modal footer{ display:flex; gap:8px; justify-content:flex-end; padding:12px 14px; border-top:1px solid #e5e7eb; }
+    .row{ display:flex; gap:10px; align-items:center; }
+    .row label{ width:120px; color:var(--muted); }
+    .row input[type="text"], .row textarea, .row input[type="date"], .row select{
+      flex:1; border:1px solid #e5e7eb; border-radius:8px; padding:8px; font:inherit; background:#fff;
+    }
+    .row textarea{ min-height:100px; resize:vertical; }
+
+    /* Hints & badges */
+    .badge{
+      display:inline-flex; align-items:center; gap:6px; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid #e5e7eb; background:#fff;
+    }
+    .wip-warning{ color:#b45309; }
+
+    @media (max-width: 640px){
+      .sheet{ margin:8px; }
+      .sheet-header{ grid-auto-columns:minmax(240px,1fr); }
+      .sheet-body{ grid-auto-columns:minmax(240px,1fr); }
+      .card{ width:130px; height:130px; }
+    }
+    .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  </style>
+</head>
+<body>
+  <!-- Bovenbalk -->
+  <div class="topbar">
+    <div class="app-title">Kanban bordje</div>
+
+    <div class="menu" id="fileMenu">
+      <button type="button" aria-haspopup="true" aria-expanded="false">Bestand ▾</button>
+      <div class="menu-list" role="menu" aria-label="Bestand">
+        <button type="button" data-cmd="save">💾 Opslaan</button>
+        <button type="button" data-cmd="saveAs">📝 Opslaan als…</button>
+        <button type="button" data-cmd="open">📂 Openen…</button>
+        <hr />
+        <button type="button" data-cmd="clear">🧹 Kanban leegmaken</button>
+        <button type="button" data-cmd="newTab">🗂️ Nieuw tabblad</button>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input id="searchInput" class="input" type="search" placeholder="Zoeken (naam/paraphrase)…" />
+      <select id="sortSelect" title="Sorteren">
+        <option value="manual">Sorteren: Handmatig</option>
+        <option value="nameAsc">Naam A→Z</option>
+        <option value="startAsc">Startdatum ↑</option>
+        <option value="endAsc">Einddatum ↑</option>
+        <option value="updatedDesc">Laatst gewijzigd ↓</option>
+      </select>
+      <span id="activeBoardBadge" class="badge">Board: <strong id="boardNameLabel">[niet opgeslagen]</strong></span>
+    </div>
+
+    <div class="spacer"></div>
+  </div>
+
+  <!-- “Werkblad” -->
+  <div class="sheet" role="region" aria-label="Excel-achtig Kanban-werkblad">
+    <!-- Koprij -->
+    <div class="sheet-header" role="row">
+      <div class="col-head" role="columnheader" data-col="todo">
+        <span>To do</span>
+        <button class="add" id="addTodoBtn" title="Nieuwe post-it">+ </button>
+        <span class="wip" data-col="todo" title="Klik om WIP-limit te wijzigen">WIP: <span class="wip-val" data-col="todo">∞</span></span>
+      </div>
+      <div class="col-head" role="columnheader" data-col="progress">
+        <span>Progress</span>
+        <span class="wip" data-col="progress" title="Klik om WIP-limit te wijzigen">WIP: <span class="wip-val" data-col="progress">3</span></span>
+      </div>
+      <div class="col-head" role="columnheader" data-col="onhold">
+        <span>On hold</span>
+        <span class="wip" data-col="onhold" title="Klik om WIP-limit te wijzigen">WIP: <span class="wip-val" data-col="onhold">2</span></span>
+      </div>
+      <div class="col-head" role="columnheader" data-col="done">
+        <span>Done</span>
+        <span class="wip" data-col="done" title="Klik om WIP-limit te wijzigen">WIP: <span class="wip-val" data-col="done">∞</span></span>
+      </div>
+    </div>
+
+    <!-- Kolommen -->
+    <div class="sheet-body">
+      <section class="column" aria-label="To do"><div class="cards" data-col="todo"></div></section>
+      <section class="column" aria-label="Progress"><div class="cards" data-col="progress"></div></section>
+      <section class="column" aria-label="On hold"><div class="cards" data-col="onhold"></div></section>
+      <section class="column" aria-label="Done"><div class="cards" data-col="done"></div></section>
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <div class="modal-backdrop" id="editorModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+      <header id="editTitle">Post-it</header>
+      <div class="content">
+        <div class="row"><label for="nameInput">Name</label><input id="nameInput" type="text" placeholder="Naam" /></div>
+        <div class="row"><label for="paraInput">Paraphrase</label><textarea id="paraInput" placeholder="Omschrijving (meerdere regels)…"></textarea></div>
+        <div class="row"><label for="startInput">Startdate</label><input id="startInput" type="date" disabled /></div>
+        <div class="row"><label for="endInput">Enddate</label><input id="endInput" type="date" disabled /></div>
+      </div>
+      <footer>
+        <button class="btn danger" id="deleteBtn">🗑️ Verwijderen</button>
+        <div class="spacer"></div>
+        <button class="btn" id="cancelEditBtn">Annuleren</button>
+        <button class="btn primary" id="saveEditBtn">Opslaan</button>
+      </footer>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="openModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="openTitle">
+      <header id="openTitle">Openen</header>
+      <div class="content" id="openList">
+        <!-- Dynamisch gevuld met opgeslagen boards -->
+      </div>
+      <footer>
+        <button class="btn" id="closeOpenBtn">Sluiten</button>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    
+
+/***********************
+ *  Data & opslag
+ ***********************/
+// v2 registry: bewaart ook de 'mooie' naam + metadata, zodat je altijd terugvindt wat je hebt opgeslagen.
+const REGISTRY_KEY_V2 = 'kanban_bordje__registry_v2';
+const REGISTRY_KEY_V1 = 'kanban_bordje__registry';        // legacy (oude versies)
+const AUTOSAVE_KEY    = 'kanban_bordje__autosave';
+
+const defaultState = () => ({
+  meta: {
+    boardName: null,   // displaynaam
+    boardKey: null,    // localStorage key
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    sortMode: 'manual',
+    wip: { todo: Infinity, progress: 3, onhold: 2, done: Infinity }
+  },
+  columns: {
+    todo: [],
+    progress: [],
+    onhold: [],
+    done: []
+  }
+});
+
+let state = loadAutosave() || defaultState();
+let editingCardId = null;
+let dragContext = { fromCol: null, cardId: null };
+
+function uid(){ return 'id-' + Math.random().toString(36).slice(2,9) + '-' + Date.now().toString(36); }
+
+// --- Registry helpers (v2) ---
+function slugify(str){
+  return String(str || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g,'')         // accents weg
+    .replace(/[^a-z0-9]+/g,'-')             // alles -> -
+    .replace(/^-+|-+$/g,'')                 // trim -
+    .slice(0, 60) || 'mijn-kanban';
+}
+function nameToKey(name){ return `kanban_bordje__board__${slugify(name)}`; }
+
+function readRegistryV2(){
+  try{ return JSON.parse(localStorage.getItem(REGISTRY_KEY_V2) || '[]'); }
+  catch{ return []; }
+}
+function writeRegistryV2(list){
+  localStorage.setItem(REGISTRY_KEY_V2, JSON.stringify(list));
+}
+function upsertRegistryEntry(entry){
+  const list = readRegistryV2();
+  const i = list.findIndex(x => x.key === entry.key);
+  if (i === -1) list.push(entry);
+  else list[i] = { ...list[i], ...entry };
+  // sort: laatst gewijzigd eerst
+  list.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  writeRegistryV2(list);
+}
+function removeRegistryEntry(key){
+  const list = readRegistryV2().filter(x => x.key !== key);
+  writeRegistryV2(list);
+}
+
+// Migratie: als er nog een oude registry bestaat, neem 'm eenmalig over naar v2
+function migrateRegistryIfNeeded(){
+  const v2 = readRegistryV2();
+  if (v2.length) return; // al gemigreerd
+  const v1 = JSON.parse(localStorage.getItem(REGISTRY_KEY_V1) || '[]');
+  if (!v1.length) return;
+
+  const migrated = [];
+  v1.forEach(key=>{
+    try{
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      const st = JSON.parse(raw);
+      const name = (st?.meta?.boardName) || key.replace(/^kanban_bordje__/, '');
+      migrated.push({
+        key,
+        name,
+        createdAt: st?.meta?.createdAt || Date.now(),
+        updatedAt: st?.meta?.updatedAt || Date.now(),
+        cards: countCards(st)
+      });
+    }catch{}
+  });
+  if (migrated.length){
+    migrated.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    writeRegistryV2(migrated);
+  }
+}
+
+function countCards(st){
+  try{
+    const cols = st?.columns || {};
+    return ['todo','progress','onhold','done'].reduce((sum,k)=>sum + ((cols[k]||[]).length), 0);
+  }catch{ return 0; }
+}
+
+// --- Save / open ---
+function saveToKey(key, displayName){
+  state.meta.updatedAt = Date.now();
+  state.meta.boardKey  = key;
+  state.meta.boardName = displayName || state.meta.boardName || key;
+
+  localStorage.setItem(key, JSON.stringify(state));
+
+  // Altijd ook autosave
+  localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(state));
+
+  // Registry bijwerken zodat "Openen…" altijd iets zinvols toont
+  upsertRegistryEntry({
+    key,
+    name: state.meta.boardName,
+    createdAt: state.meta.createdAt,
+    updatedAt: state.meta.updatedAt,
+    cards: countCards(state)
+  });
+
+  updateBoardNameBadge();
+}
+
+function save(){
+  if (!state.meta.boardKey || !state.meta.boardName){ return saveAs(); }
+  saveToKey(state.meta.boardKey, state.meta.boardName);
+  toast('Opgeslagen.');
+}
+
+function saveAs(){
+  const name = prompt('Naam voor dit board?', state.meta.boardName || 'mijn-kanban');
+  if (!name) return;
+  const key = nameToKey(name);
+  saveToKey(key, name.trim());
+  toast(`Opgeslagen als “${name.trim()}”.`);
+}
+
+function loadAutosave(){
+  try{ const raw = localStorage.getItem(AUTOSAVE_KEY); return raw? JSON.parse(raw) : null; }
+  catch{ return null; }
+}
+
+function openDialog(){
+  migrateRegistryIfNeeded();
+
+  const wrap = document.getElementById('openList');
+  wrap.innerHTML = '';
+
+  const items = readRegistryV2();
+
+  if (!items.length){
+    wrap.innerHTML = '<p style="color:var(--muted); margin:0;">Nog geen opgeslagen kanbans.</p>';
+  } else {
+    items.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.style.justifyContent = 'space-between';
+
+      const when = item.updatedAt ? new Date(item.updatedAt).toLocaleString() : '—';
+      const cards = Number.isFinite(item.cards) ? item.cards : '—';
+
+      row.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:2px;">
+          <strong>${escapeHtml(item.name || '(naamloos)')}</strong>
+          <span style="color:var(--muted); font-size:12px;">Laatst gewijzigd: ${when} · Kaartjes: ${cards}</span>
+        </div>
+        <span>
+          <button class="btn" data-open="${escapeAttr(item.key)}">Openen</button>
+          <button class="btn danger" data-del="${escapeAttr(item.key)}">Verwijderen</button>
+        </span>`;
+      wrap.appendChild(row);
+    });
+  }
+
+  showModal('openModal', true);
+
+  // Zorg dat we niet stapelen met listeners
+  wrap.removeEventListener('click', onOpenListClick);
+  wrap.addEventListener('click', onOpenListClick);
+}
+
+function onOpenListClick(e){
+  const t = e.target;
+  const openKey = t.getAttribute('data-open');
+  const delKey  = t.getAttribute('data-del');
+
+  if (openKey){
+    try{
+      const raw = localStorage.getItem(openKey);
+      if (!raw) return;
+      state = JSON.parse(raw);
+
+      // Veiligheidsnet: meta velden aanvullen
+      state.meta = state.meta || {};
+      state.meta.boardKey  = openKey;
+      state.meta.boardName = state.meta.boardName || (readRegistryV2().find(x=>x.key===openKey)?.name) || '(naamloos)';
+
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(state));
+      updateBoardNameBadge();
+      renderAll();
+      toast(`Geopend: “${state.meta.boardName}”.`);
+    } catch(err){
+      alert('Fout bij openen: ' + err.message);
+    } finally {
+      showModal('openModal', false);
+      document.getElementById('openList').removeEventListener('click', onOpenListClick);
+    }
+  }
+
+  if (delKey){
+    const name = (readRegistryV2().find(x=>x.key===delKey)?.name) || delKey;
+    if (confirm(`Verwijder opgeslagen board “${name}”?`)){
+      localStorage.removeItem(delKey);
+      removeRegistryEntry(delKey);
+      openDialog(); // herlaad lijst
+    }
+  }
+}
+
+function updateBoardNameBadge(){
+  document.getElementById('boardNameLabel').textContent = state.meta.boardName || '[niet opgeslagen]';
+  document.getElementById('sortSelect').value = state.meta.sortMode || 'manual';
+  // WIP waarden tonen
+  for (const col of ['todo','progress','onhold','done']){
+    const v = state.meta.wip[col];
+    document.querySelector(`.wip-val[data-col="${col}"]`).textContent = Number.isFinite(v) ? v : '∞';
+  }
+}
+
+// HTML escaping voor veilige innerHTML (namen / keys)
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function escapeAttr(s){ return escapeHtml(s).replace(/`/g,'&#96;'); }
+
+/***********************
+     *  Rendering
+     ***********************/
+    const zones = {
+      todo: document.querySelector('.cards[data-col="todo"]'),
+      progress: document.querySelector('.cards[data-col="progress"]'),
+      onhold: document.querySelector('.cards[data-col="onhold"]'),
+      done: document.querySelector('.cards[data-col="done"]')
+    };
+
+    function renderAll(){
+      // Sorteer volgens state.meta.sortMode
+      applySortingToState();
+      // Render per kolom
+      for (const col of Object.keys(zones)){
+        const zone = zones[col];
+        zone.innerHTML = '';
+        (state.columns[col] || []).forEach(card => {
+          const el = renderCard(card, col);
+          zone.appendChild(el);
+        });
+      }
+      applySearchFilter();
+      initDnD(); // drag & drop handlers opnieuw
+    }
+
+    function renderCard(card, col){
+      const el = document.createElement('article');
+      el.className = 'card' + (col==='done' ? ' done' : '');
+      el.setAttribute('draggable','true');
+      el.dataset.id  = card.id;
+      el.dataset.col = col;
+
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = card.name || '(naamloos)';
+
+      const para = document.createElement('div');
+      para.className = 'para';
+      para.textContent = card.paraphrase || '';
+
+      const dates = document.createElement('div');
+      dates.className = 'dates';
+      const sd = card.startDate ? formatDate(card.startDate) : '—';
+      const ed = card.endDate ? formatDate(card.endDate) : '—';
+      dates.innerHTML = `<div>Start: ${sd}</div><div>End: ${ed}</div>`;
+
+      const tools = document.createElement('div');
+      tools.className = 'tools';
+      const editBtn = buttonMini('✏️', 'Bewerken', () => openEditor(card.id));
+      const delBtn  = buttonMini('🗑️', 'Verwijderen', () => deleteCard(card.id));
+      tools.append(editBtn, delBtn);
+
+      el.append(name, para, dates, tools);
+      // Dblclick = edit
+      el.addEventListener('dblclick', () => openEditor(card.id));
+      return el;
+    }
+
+    function buttonMini(icon, title, onClick){
+      const b = document.createElement('button');
+      b.className = 'icon-btn'; b.type='button'; b.title=title; b.textContent = icon;
+      b.addEventListener('click', onClick);
+      return b;
+    }
+
+    /***********************
+     *  Drag & drop
+     ***********************/
+    function initDnD(){
+      // Draggable cards
+      document.querySelectorAll('.card').forEach(cardEl => {
+        cardEl.addEventListener('dragstart', (e) => {
+          dragContext.cardId = cardEl.dataset.id;
+          dragContext.fromCol = cardEl.dataset.col;
+          e.dataTransfer.setData('text/plain', dragContext.cardId);
+          e.dataTransfer.effectAllowed = 'move';
+          requestAnimationFrame(() => cardEl.classList.add('dragging'));
+        });
+        cardEl.addEventListener('dragend', () => {
+          cardEl.classList.remove('dragging');
+          dragContext.cardId = null; dragContext.fromCol = null;
+        });
+      });
+
+      // Dropzones
+      document.querySelectorAll('.cards').forEach(zone => {
+        zone.addEventListener('dragenter', () => zone.classList.add('highlight'));
+        zone.addEventListener('dragleave', (e) => {
+          if (!zone.contains(e.relatedTarget)) zone.classList.remove('highlight');
+        });
+        zone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          // WIP check tijdens hover
+          const targetCol = zone.dataset.col;
+          if (!canAcceptMore(targetCol) && !isCardAlreadyInside(dragContext.cardId, targetCol)){
+            zone.classList.add('wip-deny');
+            return; // niet her-ordenen als WIP vol
+          }
+          const afterEl = getDragAfterElement(zone, e.clientY);
+          const dragged = document.querySelector(`.card.dragging`);
+          if (!dragged) return;
+          if (afterEl == null) zone.appendChild(dragged);
+          else zone.insertBefore(dragged, afterEl);
+        });
+        zone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          zone.classList.remove('highlight');
+          const id = e.dataTransfer.getData('text/plain');
+          const targetCol = zone.dataset.col;
+
+          // WIP limit afdwingen
+          if (!canAcceptMore(targetCol) && !isCardAlreadyInside(id, targetCol)){
+            warn(`WIP-limit bereikt voor “${prettyCol(targetCol)}”.`);
+            // terugrenderen naar oude staat
+            renderAll();
+            return;
+          }
+
+          moveCardTo(id, targetCol);
+        });
+      });
+    }
+
+    function getDragAfterElement(container, y){
+      const els = [...container.querySelectorAll('.card:not(.dragging)')];
+      let closest = { offset:Number.NEGATIVE_INFINITY, element:null };
+      for (const el of els){
+        const box = el.getBoundingClientRect();
+        const offset = y - (box.top + box.height/2);
+        if (offset < 0 && offset > closest.offset){
+          closest = { offset, element: el };
+        }
+      }
+      return closest.element;
+    }
+
+    function isCardAlreadyInside(cardId, col){
+      return (state.columns[col] || []).some(c=>c.id===cardId);
+    }
+
+    function canAcceptMore(col){
+      const limit = state.meta.wip[col];
+      if (!Number.isFinite(limit)) return true;
+      const count = state.columns[col].length;
+      return count < limit;
+    }
+
+    function moveCardTo(cardId, targetCol){
+      if (!cardId || !targetCol) return;
+      let card=null, fromCol=null, idx=-1;
+      for (const col of Object.keys(state.columns)){
+        const i = state.columns[col].findIndex(c=>c.id===cardId);
+        if (i !== -1){ card = state.columns[col][i]; fromCol = col; idx = i; break; }
+      }
+      if (!card) return;
+
+      // Haal uit bron
+      state.columns[fromCol].splice(idx, 1);
+
+      // Bepaal nieuwe index o.b.v. DOM-positie (handmatig sorteren)
+      const zone = zones[targetCol];
+      const orderIds = [...zone.querySelectorAll('.card')].map(el=>el.dataset.id);
+      let newIndex = orderIds.indexOf(cardId);
+      if (newIndex < 0 || newIndex > state.columns[targetCol].length) newIndex = state.columns[targetCol].length;
+
+      // Automatische datums
+      if (fromCol === 'todo' && targetCol === 'progress' && !card.startDate){
+        card.startDate = todayISO();
+      }
+      if (targetCol === 'done'){
+        card.endDate = todayISO();
+      }
+      // Kleur: dynamisch per kolom (done = groen), overige = geel
+      // (visual gebeurt via CSS class op render)
+
+      card.updatedAt = Date.now();
+      state.columns[targetCol].splice(newIndex, 0, card);
+
+      // Opslaan + render
+      saveAutosync();
+      renderAll();
+    }
+
+    function saveAutosync(){
+      // bewaar altijd autosave (achter de schermen)
+      state.meta.updatedAt = Date.now();
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(state));
+    }
+
+    /***********************
+     *  CRUD
+     ***********************/
+    function addNewInTodo(){
+      if (!canAcceptMore('todo')){ return warn('WIP-limit bereikt voor “To do”.'); }
+      const card = {
+        id: uid(),
+        name: '',
+        paraphrase: '',
+        startDate: null,
+        endDate: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      state.columns.todo.push(card);
+      saveAutosync();
+      renderAll();
+      openEditor(card.id); // meteen bewerken
+    }
+
+    function openEditor(cardId){
+      editingCardId = cardId;
+      const card = findCard(cardId);
+      if (!card) return;
+      document.getElementById('nameInput').value = card.name || '';
+      document.getElementById('paraInput').value = card.paraphrase || '';
+      document.getElementById('startInput').value = card.startDate || '';
+      document.getElementById('endInput').value   = card.endDate   || '';
+      showModal('editorModal', true);
+    }
+
+    function saveEditor(){
+      if (!editingCardId) return;
+      const card = findCard(editingCardId);
+      if (!card) return;
+
+      const name = document.getElementById('nameInput').value.trim();
+      if (!name){ return alert('Name is verplicht.'); }
+      card.name = name;
+      card.paraphrase = document.getElementById('paraInput').value;
+      // start/end worden automatisch gezet via DnD; velden zijn read-only
+
+      card.updatedAt = Date.now();
+      saveAutosync();
+      showModal('editorModal', false);
+      renderAll();
+    }
+
+    function deleteCard(cardId){
+      for (const col of Object.keys(state.columns)){
+        const i = state.columns[col].findIndex(c=>c.id===cardId);
+        if (i !== -1){
+          if (confirm('Weet je zeker dat je deze post-it wilt verwijderen?')){
+            state.columns[col].splice(i,1);
+            saveAutosync();
+            renderAll();
+          }
+          return;
+        }
+      }
+    }
+
+    function findCard(cardId){
+      for (const col of Object.keys(state.columns)){
+        const f = state.columns[col].find(c=>c.id===cardId);
+        if (f) return f;
+      }
+      return null;
+    }
+
+    /***********************
+     *  WIP limit UI
+     ***********************/
+    document.querySelectorAll('.wip').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const col = el.getAttribute('data-col');
+        const current = state.meta.wip[col];
+        const inp = prompt(`Nieuwe WIP-limit voor “${prettyCol(col)}” (leeg = ∞):`, Number.isFinite(current)? current : '');
+        if (inp===null) return;
+        const n = String(inp).trim()==='' ? Infinity : Math.max(0, parseInt(inp,10));
+        state.meta.wip[col] = Number.isFinite(n) ? n : Infinity;
+        updateBoardNameBadge();
+        saveAutosync();
+        renderAll();
+      });
+    });
+
+    function prettyCol(key){
+      return ({todo:'To do',progress:'Progress',onhold:'On hold',done:'Done'})[key] || key;
+    }
+
+    /***********************
+     *  Zoeken & sorteren
+     ***********************/
+    const searchInput = document.getElementById('searchInput');
+    const sortSelect = document.getElementById('sortSelect');
+
+    searchInput.addEventListener('input', applySearchFilter);
+    sortSelect.addEventListener('change', ()=>{
+      state.meta.sortMode = sortSelect.value;
+      saveAutosync();
+      renderAll();
+    });
+
+    function applySearchFilter(){
+      const q = searchInput.value.trim().toLowerCase();
+      document.querySelectorAll('.card').forEach(el=>{
+        if (!q){ el.classList.remove('hidden'); return; }
+        const id = el.dataset.id;
+        const card = findCard(id);
+        const hay = `${card?.name||''}\n${card?.paraphrase||''}`.toLowerCase();
+        el.classList.toggle('hidden', !hay.includes(q));
+      });
+    }
+
+    function applySortingToState(){
+      const mode = state.meta.sortMode || 'manual';
+      if (mode==='manual') return;
+      const cmp = {
+        nameAsc:(a,b)=>(a.name||'').localeCompare(b.name||''),
+        startAsc:(a,b)=>cmpDateAsc(a.startDate,b.startDate),
+        endAsc:(a,b)=>cmpDateAsc(a.endDate,b.endDate),
+        updatedDesc:(a,b)=>(b.updatedAt||0)-(a.updatedAt||0)
+      }[mode] || (()=>0);
+      for (const col of Object.keys(state.columns)){
+        state.columns[col].sort(cmp);
+      }
+    }
+    function cmpDateAsc(a,b){
+      if (!a && !b) return 0; if (!a) return 1; if (!b) return -1;
+      return new Date(a)-new Date(b);
+    }
+
+    /***********************
+     *  Bestand-menu
+     ***********************/
+    const fileMenu = document.getElementById('fileMenu');
+    fileMenu.querySelector('button').addEventListener('click', ()=>{
+      fileMenu.classList.toggle('open');
+      const expanded = fileMenu.classList.contains('open');
+      fileMenu.querySelector('button').setAttribute('aria-expanded', expanded ? 'true':'false');
+    });
+    document.addEventListener('click', (e)=>{
+      if (!fileMenu.contains(e.target)) fileMenu.classList.remove('open');
+    });
+
+    fileMenu.querySelector('.menu-list').addEventListener('click', (e)=>{
+      const cmd = e.target.getAttribute('data-cmd');
+      if (!cmd) return;
+      if (cmd==='save') save();
+      if (cmd==='saveAs') saveAs();
+      if (cmd==='open') openDialog();
+      if (cmd==='clear'){
+        if (confirm('Nieuw leeg Kanban-bord maken? (huidige inhoud blijft bewaard in autosave en/of als je al hebt opgeslagen)')){
+          const bn = state.meta.boardName; // naam behouden maar inhoud leeg
+          state = defaultState();
+          state.meta.boardName = bn;
+          saveAutosync();
+          renderAll();
+        }
+      }
+      if (cmd==='newTab'){ window.open(location.origin + location.pathname, '_blank'); }
+      fileMenu.classList.remove('open');
+    });
+
+    // Openen dialog knoppen
+    document.getElementById('closeOpenBtn').addEventListener('click', ()=>{
+      showModal('openModal', false);
+      document.getElementById('openList').removeEventListener('click', onOpenListClick);
+    });
+
+    /***********************
+     *  Modal helpers
+     ***********************/
+    function showModal(id, show){
+      const el = document.getElementById(id);
+      el.style.display = show ? 'flex' : 'none';
+    }
+    document.getElementById('cancelEditBtn').addEventListener('click', ()=>showModal('editorModal', false));
+    document.getElementById('saveEditBtn').addEventListener('click', saveEditor);
+    document.getElementById('deleteBtn').addEventListener('click', ()=>{
+      if (!editingCardId) return;
+      showModal('editorModal', false);
+      deleteCard(editingCardId);
+    });
+
+    /***********************
+     *  Small helpers
+     ***********************/
+    function todayISO(){ return new Date().toISOString().slice(0,10); }
+    function formatDate(iso){ try{ const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString(); }catch{ return iso; } }
+    function toast(msg){
+      const t = document.createElement('div');
+      t.textContent = msg;
+      t.style.position='fixed'; t.style.bottom='16px'; t.style.left='50%'; t.style.transform='translateX(-50%)';
+      t.style.background='#111827'; t.style.color='#fff'; t.style.padding='8px 12px'; t.style.borderRadius='999px'; t.style.boxShadow='var(--shadow)'; t.style.zIndex='200';
+      document.body.appendChild(t);
+      setTimeout(()=>t.remove(), 1600);
+    }
+    function warn(msg){ toast('⚠️ ' + msg); }
+
+    /***********************
+     *  Event wiring
+     ***********************/
+    document.getElementById('addTodoBtn').addEventListener('click', addNewInTodo);
+
+    // Init
+    updateBoardNameBadge();
+    renderAll();
+  </script>
+</body>
+</html>

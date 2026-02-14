@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Leden | Wintrip</title>
+
+  <link rel="stylesheet" href="/assets/style.css?v=2">
+  <link rel="stylesheet" href="/leden/leden.css?v=1">
+  <script defer src="/leden/leden.js?v=1"></script>
+</head>
+<body class="bg" data-page="leden">
+  <header class="topbar">
+    <img src="/assets/logo.png" class="logo" alt="Wintrip logo">
+    <div class="titleWrap">
+      <div class="title">Leden</div>
+      <div class="subtitle">Klein koor</div>
+    </div>
+
+    <nav class="menu">
+      <a class="menuBtn ghost" href="/dashboard.html">Dashboard</a>
+    </nav>
+  </header>
+
+  <div class="loginbar" id="loginbar">
+    <input id="pw" type="password" placeholder="Toegangscode">
+    <button id="loginBtn" class="btn primary">Inloggen</button>
+    <span id="loginMsg"></span>
+  </div>
+
+  <main class="container">
+    <div class="tileGrid" id="wrap"></div>
+  </main>
+</body>
+</html>

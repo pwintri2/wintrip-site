@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Gebruikers beheer | Wintrip Projects</title>
+
+  <link rel="stylesheet" href="/assets/style.css?v=2">
+  <script defer src="/assets/sortable.min.js?v=2"></script>
+  <script defer src="/assets/gebruikers.js?v=2"></script>
+</head>
+<body class="bg">
+  <header class="topbar">
+    <img src="/assets/logo.png" class="logo" alt="Wintrip logo">
+    <div class="titleWrap">
+      <div class="title">Gebruikers beheer</div>
+      <div class="subtitle" id="boardNameLabel">Board: …</div>
+    </div>
+
+    <nav class="menu">
+      <button class="menuBtn" data-menu="fileMenu">Bestand ▾</button>
+      <div class="menuPop" id="fileMenu" hidden>
+        <button class="menuItem" id="mSave">Opslaan</button>
+        <button class="menuItem" id="mSaveAs">Opslaan als…</button>
+        <button class="menuItem" id="mOpen">Openen…</button>
+        <div class="menuSep"></div>
+        <button class="menuItem danger" id="mClear">Kolommen leegmaken</button>
+      </div>
+
+      <a class="menuBtn ghost" href="/login?next=/dashboard.html">Dashboard</a>
+    </nav>
+  </header>
+
+  <div class="loginbar" id="loginbar">
+    <input id="pw" type="password" placeholder="Admin wachtwoord">
+    <button id="loginBtn" class="btn primary">Inloggen</button>
+    <span id="loginMsg"></span>
+  </div>
+
+  <main class="board" id="board"></main>
+
+  <div class="modal" id="modal" hidden>
+    <div class="card">
+      <div class="cardTitle">Tegel toevoegen / bewerken</div>
+
+      <label>Icoon</label>
+      <div class="iconGrid" id="iconGrid"></div>
+
+      <label>Titel</label>
+      <input id="title" type="text" />
+
+      <label>Link</label>
+      <input id="link" type="url" placeholder="https://..." />
+
+      <label>Omschrijving</label>
+      <textarea id="desc" rows="4"></textarea>
+
+      <div class="modalBtns">
+        <button id="deleteBtn" class="btn danger">Verwijderen</button>
+        <button id="cancelBtn" class="btn">Annuleren</button>
+        <button id="saveBtn" class="btn primary">Opslaan</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="promptModal" hidden>
+    <div class="card">
+      <div class="cardTitle" id="promptTitle">Naam</div>
+      <label id="promptLabel">Bestandsnaam</label>
+      <input id="promptInput" type="text" placeholder="bijv. mijn-board" />
+      <div class="modalBtns">
+        <button id="promptCancel" class="btn">Annuleren</button>
+        <button id="promptOk" class="btn primary">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="openModal" hidden>
+    <div class="card">
+      <div class="cardTitle">Openen</div>
+      <div class="fileList" id="fileList"></div>
+      <div class="modalBtns">
+        <button id="openClose" class="btn">Sluiten</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

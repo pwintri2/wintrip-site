@@ -1,0 +1,1060 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wintrip Projects Agenda</title>
+  <style>
+    :root{
+      --excel-header-bg:#1f6f43;
+      --excel-header-fg:#ffffff;
+      --grid-border:#d1d5db;
+      --bg:#f3f4f6;
+      --sheet-bg:#ffffff;
+      --text:#111827;
+      --muted:#6b7280;
+      --accent:#2563eb;
+      --danger:#dc2626;
+
+      --cell-h: 34px;
+      --time-col-w: 86px;
+      --day-col-w: 1fr;
+      --radius: 14px;
+      --shadow: 0 10px 30px rgba(0,0,0,.08);
+      --font: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+
+    *{ box-sizing: border-box; }
+    body{
+      margin:0;
+      font-family: var(--font);
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    /* Topbar */
+    .topbar{
+      background: var(--excel-header-bg);
+      color: var(--excel-header-fg);
+      padding: 16px 18px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 6px 20px rgba(0,0,0,.15);
+    }
+    .title{
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: .2px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      white-space: nowrap;
+    }
+    .subtitle{
+      font-size: 12px;
+      opacity:.9;
+      margin-top:2px;
+    }
+    .topbar-left{
+      display:flex;
+      flex-direction:column;
+      line-height:1.15;
+      min-width: 240px;
+    }
+    .topbar-right{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      align-items:center;
+    }
+    .btn{
+      border: 1px solid rgba(255,255,255,.35);
+      background: rgba(255,255,255,.12);
+      color: #fff;
+      padding: 8px 10px;
+      border-radius: 10px;
+      cursor:pointer;
+      font-weight:600;
+      font-size: 13px;
+      transition: transform .05s ease, background .15s ease;
+      user-select:none;
+    }
+    .btn:hover{ background: rgba(255,255,255,.18); }
+    .btn:active{ transform: translateY(1px); }
+
+    /* Layout container */
+    .wrap{
+      padding: 16px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .panel{
+      background: var(--sheet-bg);
+      border: 1px solid var(--grid-border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    /* Controls row */
+    .controls{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      padding: 12px 12px;
+      border-bottom: 1px solid var(--grid-border);
+      background: #fff;
+    }
+    .controls .group{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .chip{
+      border: 1px solid var(--grid-border);
+      background:#fff;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    input[type="date"], select{
+      border: 1px solid var(--grid-border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 13px;
+      background:#fff;
+    }
+    .small{
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* Calendar grid */
+    .grid{
+      display:grid;
+      grid-template-columns: var(--time-col-w) repeat(7, var(--day-col-w));
+      width:100%;
+    }
+    .cell{
+      border-right: 1px solid var(--grid-border);
+      border-bottom: 1px solid var(--grid-border);
+      min-height: var(--cell-h);
+      position: relative;
+      background:#fff;
+    }
+    .cell.time{
+      background:#fafafa;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 8px 8px;
+      border-right: 1px solid var(--grid-border);
+      display:flex;
+      align-items:flex-start;
+      justify-content:flex-end;
+      font-variant-numeric: tabular-nums;
+    }
+    .cell.header{
+      background:#f9fafb;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 10px 10px;
+      min-height: 44px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .cell.header .dow{
+      display:flex;
+      flex-direction:column;
+      line-height:1.05;
+    }
+    .cell.header .dow span{
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .slot{
+      cursor: pointer;
+    }
+    .slot:hover{
+      background: #f8fafc;
+    }
+    .nowline{
+      position:absolute;
+      left:0;
+      right:0;
+      height:2px;
+      background: var(--danger);
+      opacity:.65;
+      pointer-events:none;
+      z-index: 4;
+    }
+
+    /* Event chips */
+    .event{
+      position:absolute;
+      left: 6px;
+      right: 6px;
+      border-radius: 10px;
+      background: rgba(37,99,235,.10);
+      border: 1px solid rgba(37,99,235,.25);
+      padding: 6px 8px;
+      overflow:hidden;
+      z-index: 3;
+      box-shadow: 0 6px 14px rgba(0,0,0,.07);
+    }
+    .event .t{
+      font-weight: 700;
+      font-size: 12.5px;
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+    }
+    .event .m{
+      margin-top: 2px;
+      font-size: 11.5px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+    }
+    .event.allDay{
+      background: rgba(31,111,67,.10);
+      border-color: rgba(31,111,67,.25);
+    }
+    .event:hover{
+      filter: brightness(0.98);
+    }
+
+    /* Modal */
+    .modal-backdrop{
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.35);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 18px;
+      z-index: 50;
+    }
+    .modal{
+      width: min(640px, 100%);
+      background:#fff;
+      border-radius: 18px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+      overflow:hidden;
+      border: 1px solid rgba(0,0,0,.08);
+    }
+    .modal-header{
+      padding: 14px 16px;
+      background:#f9fafb;
+      border-bottom: 1px solid var(--grid-border);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+    }
+    .modal-header .h{
+      font-weight: 800;
+      font-size: 14px;
+    }
+    .modal-body{
+      padding: 14px 16px 16px;
+      display:grid;
+      gap: 10px;
+    }
+    .row{
+      display:grid;
+      grid-template-columns: 120px 1fr;
+      gap:10px;
+      align-items:center;
+    }
+    .row label{
+      font-size: 12.5px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .row input[type="text"],
+    .row input[type="time"],
+    .row textarea{
+      border: 1px solid var(--grid-border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 14px;
+      width:100%;
+      outline:none;
+    }
+    .row textarea{
+      min-height: 90px;
+      resize: vertical;
+    }
+    .inline{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .checkbox{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      user-select:none;
+    }
+    .modal-footer{
+      padding: 12px 16px;
+      border-top: 1px solid var(--grid-border);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      background:#fff;
+    }
+    .btn2{
+      border: 1px solid var(--grid-border);
+      background:#fff;
+      color: var(--text);
+      padding: 9px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .btn2.primary{
+      background: var(--accent);
+      color:#fff;
+      border-color: rgba(0,0,0,.0);
+    }
+    .btn2.danger{
+      background:#fff;
+      color: var(--danger);
+      border-color: rgba(220,38,38,.35);
+    }
+    .btn2:active{ transform: translateY(1px); }
+
+    .hint{
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* Responsive */
+    @media (max-width: 900px){
+      :root{ --time-col-w: 68px; }
+      .cell.header{ min-height: 52px; }
+      .row{ grid-template-columns: 1fr; }
+      .row label{ margin-top: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="title">Wintrip Projects Agenda</div>
+      <div class="subtitle" id="weekLabel">Week</div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn" id="todayBtn">Vandaag</button>
+      <button class="btn" id="prevBtn">◀︎ Week</button>
+      <button class="btn" id="nextBtn">Week ▶︎</button>
+      <button class="btn" id="exportBtn">Export</button>
+      <button class="btn" id="importBtn">Import</button>
+      <input type="file" id="fileInput" accept="application/json" style="display:none" />
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="panel">
+      <div class="controls">
+        <div class="group">
+          <div class="chip">
+            <span class="small">Start week:</span>
+            <input type="date" id="weekStartInput" />
+          </div>
+          <div class="chip">
+            <span class="small">Tijden:</span>
+            <select id="rangeSelect">
+              <option value="08-20">08:00 – 20:00</option>
+              <option value="06-22">06:00 – 22:00</option>
+              <option value="00-24">00:00 – 24:00</option>
+            </select>
+          </div>
+        </div>
+        <div class="group">
+          <div class="hint">Klik op een tijdvak om iets te plannen. Klik op een item om te bewerken.</div>
+        </div>
+      </div>
+
+      <div style="position:relative">
+        <div id="calendar" class="grid"></div>
+        <div id="nowLine" class="nowline" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-backdrop" id="backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-header">
+        <div class="h" id="modalTitle">Agenda-item</div>
+        <button class="btn2" id="closeModalBtn" title="Sluiten">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <label for="fTitle">Titel</label>
+          <input type="text" id="fTitle" placeholder="Bijv. Overleg, repetitie, bellen..." />
+        </div>
+
+        <div class="row">
+          <label>Datum & tijd</label>
+          <div class="inline">
+            <div class="checkbox">
+              <input type="checkbox" id="fAllDay" />
+              <label for="fAllDay" style="margin:0;color:var(--text);font-weight:700;">Hele dag</label>
+            </div>
+            <span class="small" id="fDateLabel"></span>
+          </div>
+        </div>
+
+        <div class="row" id="timeRow">
+          <label>Tijd</label>
+          <div class="inline">
+            <input type="time" id="fStart" />
+            <span class="small">tot</span>
+            <input type="time" id="fEnd" />
+          </div>
+        </div>
+
+        <div class="row">
+          <label for="fDesc">Beschrijving</label>
+          <textarea id="fDesc" placeholder="Notities..."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <div class="inline" style="gap:8px;">
+          <button class="btn2 danger" id="deleteBtn" style="display:none;">Verwijderen</button>
+          <span class="hint" id="saveHint">Wordt automatisch opgeslagen.</span>
+        </div>
+        <div class="inline">
+          <button class="btn2" id="cancelBtn">Annuleren</button>
+          <button class="btn2 primary" id="saveBtn">Opslaan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ====== Config ======
+  const STORAGE_KEY = "wintrip_agenda_v1";
+  const DOW = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"];
+  const DOW_LONG = ["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag","Zaterdag","Zondag"];
+  const HALF_HOUR = 30;
+
+  // ====== State ======
+  /** events: {id, date:'YYYY-MM-DD', allDay:boolean, start:'HH:MM', end:'HH:MM', title, desc} */
+  let events = loadEvents();
+  let weekStart = startOfWeek(new Date()); // Monday
+  let range = { start: 8, end: 20 };
+  let activeEditId = null;       // if editing existing event
+  let clickedContext = null;     // {date, start, end} for new event defaults
+
+  // ====== Elements ======
+  const calEl = document.getElementById("calendar");
+  const weekLabelEl = document.getElementById("weekLabel");
+  const weekStartInput = document.getElementById("weekStartInput");
+  const rangeSelect = document.getElementById("rangeSelect");
+  const nowLine = document.getElementById("nowLine");
+
+  const backdrop = document.getElementById("backdrop");
+  const closeModalBtn = document.getElementById("closeModalBtn");
+  const cancelBtn = document.getElementById("cancelBtn");
+  const saveBtn = document.getElementById("saveBtn");
+  const deleteBtn = document.getElementById("deleteBtn");
+
+  const fTitle = document.getElementById("fTitle");
+  const fAllDay = document.getElementById("fAllDay");
+  const fDateLabel = document.getElementById("fDateLabel");
+  const timeRow = document.getElementById("timeRow");
+  const fStart = document.getElementById("fStart");
+  const fEnd = document.getElementById("fEnd");
+  const fDesc = document.getElementById("fDesc");
+
+  // Top buttons
+  document.getElementById("todayBtn").addEventListener("click", () => {
+    weekStart = startOfWeek(new Date());
+    syncWeekInput();
+    render();
+  });
+  document.getElementById("prevBtn").addEventListener("click", () => {
+    weekStart = addDays(weekStart, -7);
+    syncWeekInput();
+    render();
+  });
+  document.getElementById("nextBtn").addEventListener("click", () => {
+    weekStart = addDays(weekStart, 7);
+    syncWeekInput();
+    render();
+  });
+
+  // Export/Import
+  document.getElementById("exportBtn").addEventListener("click", exportJSON);
+  document.getElementById("importBtn").addEventListener("click", () => document.getElementById("fileInput").click());
+  document.getElementById("fileInput").addEventListener("change", importJSON);
+
+  // Controls
+  rangeSelect.addEventListener("change", () => {
+    const v = rangeSelect.value;
+    if (v === "08-20") range = {start:8,end:20};
+    if (v === "06-22") range = {start:6,end:22};
+    if (v === "00-24") range = {start:0,end:24};
+    render();
+  });
+  weekStartInput.addEventListener("change", () => {
+    if (!weekStartInput.value) return;
+    // Treat input as date; normalize to monday of that week (nice & consistent)
+    weekStart = startOfWeek(new Date(weekStartInput.value + "T12:00:00"));
+    syncWeekInput();
+    render();
+  });
+
+  // Modal handlers
+  closeModalBtn.addEventListener("click", closeModal);
+  cancelBtn.addEventListener("click", closeModal);
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeModal(); });
+
+  fAllDay.addEventListener("change", () => {
+    timeRow.style.display = fAllDay.checked ? "none" : "";
+  });
+
+  saveBtn.addEventListener("click", () => {
+    const payload = readForm();
+    if (!payload.title.trim()) payload.title = "(zonder titel)";
+
+    if (activeEditId) {
+      events = events.map(ev => ev.id === activeEditId ? ({...ev, ...payload, id: activeEditId}) : ev);
+    } else {
+      events.push({ id: cryptoId(), ...payload });
+    }
+    persist();
+    closeModal();
+    render();
+  });
+
+  deleteBtn.addEventListener("click", () => {
+    if (!activeEditId) return;
+    events = events.filter(ev => ev.id !== activeEditId);
+    persist();
+    closeModal();
+    render();
+  });
+
+  // ====== Init ======
+  syncWeekInput();
+  syncRangeSelect();
+  render();
+  setInterval(() => { positionNowLine(); }, 30_000);
+
+  // ====== Render ======
+  function render(){
+    calEl.innerHTML = "";
+
+    // Header row
+    calEl.appendChild(headerCell(""));
+    for (let d = 0; d < 7; d++){
+      const date = addDays(weekStart, d);
+      const day = DOW[d];
+      const dd = pad2(date.getDate());
+      const mm = pad2(date.getMonth() + 1);
+      const yyyy = date.getFullYear();
+
+      const c = headerCell("");
+      c.classList.add("header");
+      c.innerHTML = `
+        <div class="dow">
+          <div>${day}</div>
+          <span>${dd}-${mm}-${yyyy}</span>
+        </div>
+        <div class="small">${isToday(date) ? "vandaag" : ""}</div>
+      `;
+      calEl.appendChild(c);
+    }
+
+    // All-day row label
+    calEl.appendChild(timeCell("Hele dag"));
+    for (let d = 0; d < 7; d++){
+      const date = fmtDate(addDays(weekStart, d));
+      const slot = slotCell({ date, start: "00:00", end: "23:59", allDayRow: true });
+      slot.style.minHeight = "44px";
+      calEl.appendChild(slot);
+    }
+
+    // Time grid (half-hour)
+    const slots = buildSlots(range.start, range.end); // ["08:00", "08:30", ...]
+    for (let i = 0; i < slots.length; i++){
+      const t = slots[i];
+
+      calEl.appendChild(timeCell(t));
+      for (let d = 0; d < 7; d++){
+        const dateObj = addDays(weekStart, d);
+        const date = fmtDate(dateObj);
+
+        const start = t;
+        const end = addMinutesToTime(t, HALF_HOUR);
+
+        calEl.appendChild(slotCell({ date, start, end }));
+      }
+    }
+
+    // Labels
+    const endWeek = addDays(weekStart, 6);
+    weekLabelEl.textContent = `${fmtHuman(weekStart)} — ${fmtHuman(endWeek)}`;
+
+    // Place events
+    renderEvents();
+
+    // Now line
+    positionNowLine();
+  }
+
+  function headerCell(text){
+    const c = document.createElement("div");
+    c.className = "cell header";
+    c.textContent = text;
+    return c;
+  }
+  function timeCell(text){
+    const c = document.createElement("div");
+    c.className = "cell time";
+    c.textContent = text;
+    return c;
+  }
+  function slotCell(ctx){
+    const c = document.createElement("div");
+    c.className = "cell slot";
+    c.dataset.date = ctx.date;
+    c.dataset.start = ctx.start;
+    c.dataset.end = ctx.end;
+    c.dataset.alldayrow = ctx.allDayRow ? "1" : "0";
+
+    c.addEventListener("click", () => {
+      // new event in this slot
+      const isAllDayRow = c.dataset.alldayrow === "1";
+      const start = isAllDayRow ? "09:00" : c.dataset.start;
+      const end = isAllDayRow ? "17:00" : c.dataset.end;
+
+      clickedContext = { date: c.dataset.date, start, end, allDay: isAllDayRow };
+      openModalForNew(clickedContext);
+    });
+
+    return c;
+  }
+
+  function renderEvents(){
+    // remove old chips
+    calEl.querySelectorAll(".event").forEach(el => el.remove());
+
+    const ws = fmtDate(weekStart);
+    const we = fmtDate(addDays(weekStart, 6));
+
+    // Only render events that fall within visible week
+    const visible = events.filter(ev => ev.date >= ws && ev.date <= we);
+
+    for (const ev of visible){
+      if (ev.allDay){
+        // Put in all-day row cell
+        const cell = findCell(ev.date, "00:00", "23:59", true);
+        if (!cell) continue;
+        const chip = makeEventChip(ev);
+        chip.classList.add("allDay");
+        chip.style.position = "relative";
+        chip.style.left = "6px";
+        chip.style.right = "6px";
+        chip.style.top = "6px";
+        chip.style.marginBottom = "6px";
+        chip.style.height = "auto";
+        chip.style.zIndex = "3";
+        cell.appendChild(chip);
+      } else {
+        // Position inside day column overlay: easiest = attach chip to starting slot cell and stretch
+        const startCell = findCell(ev.date, ev.start, addMinutesToTime(ev.start, HALF_HOUR), false);
+        if (!startCell) continue;
+
+        const minutesFromStart = timeToMinutes(ev.start) - range.start * 60;
+        const dur = Math.max(30, timeToMinutes(ev.end) - timeToMinutes(ev.start));
+
+        // cell height represents 30 minutes
+        const top = (minutesFromStart / 30) * parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cell-h'));
+        const height = (dur / 30) * parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cell-h')) - 2;
+
+        // Find the column container: we’ll anchor to the first timeslot cell of the day (08:00-ish) by using the first matching cell for that date in time grid.
+        const anchor = findFirstTimeCellForDate(ev.date);
+        if (!anchor) continue;
+
+        // Create absolutely-positioned chip inside anchor's parent stacking context:
+        // We need a wrapper that spans the entire column. We'll create (or reuse) a column overlay.
+        const overlay = ensureColumnOverlay(ev.date, anchor);
+        const chip = makeEventChip(ev);
+        chip.style.top = `${top + 1}px`;
+        chip.style.height = `${Math.max(30, height)}px`;
+        overlay.appendChild(chip);
+      }
+    }
+
+    // Avoid overlay blocking clicks
+    calEl.querySelectorAll(".colOverlay").forEach(ov => {
+      ov.style.pointerEvents = "none";
+      ov.querySelectorAll(".event").forEach(ch => ch.style.pointerEvents = "auto");
+    });
+  }
+
+  function ensureColumnOverlay(date, anchorCell){
+    const key = `overlay_${date}`;
+    let ov = calEl.querySelector(`[data-overlay="${key}"]`);
+    if (ov) return ov;
+
+    // anchorCell is one grid cell; its column area is spread across many rows.
+    // We'll create an overlay element positioned over the whole visible time area for that day column.
+    // We'll compute its position relative to the calendar container.
+    const calRect = calEl.getBoundingClientRect();
+    const anchorRect = anchorCell.getBoundingClientRect();
+
+    const headerRowCount = 2; // header + all-day row
+    const slotCount = buildSlots(range.start, range.end).length;
+    const cellH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cell-h'));
+
+    // Column top starts after header+allday rows in DOM, but easier: start at the first timeslot cell rect top
+    const firstTimeCell = findFirstTimeCellForDate(date);
+    const firstRect = firstTimeCell.getBoundingClientRect();
+
+    // height spans all time slots
+    const height = slotCount * cellH;
+
+    ov = document.createElement("div");
+    ov.className = "colOverlay";
+    ov.dataset.overlay = key;
+    ov.style.position = "absolute";
+    ov.style.left = `${anchorRect.left - calRect.left}px`;
+    ov.style.top = `${firstRect.top - calRect.top}px`;
+    ov.style.width = `${anchorRect.width}px`;
+    ov.style.height = `${height}px`;
+    ov.style.zIndex = "2";
+
+    // Put overlay inside the calendar's parent positioned container
+    calEl.parentElement.style.position = "relative";
+    calEl.parentElement.appendChild(ov);
+    return ov;
+  }
+
+  function makeEventChip(ev){
+    const chip = document.createElement("div");
+    chip.className = "event" + (ev.allDay ? " allDay" : "");
+    chip.innerHTML = `
+      <div class="t">${escapeHtml(ev.title || "(zonder titel)")}</div>
+      <div class="m">${ev.allDay ? "Hele dag" : `${ev.start}–${ev.end}`}${ev.desc ? " • " + escapeHtml(ev.desc) : ""}</div>
+    `;
+    chip.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openModalForEdit(ev.id);
+    });
+    return chip;
+  }
+
+  function findCell(date, start, end, allDayRow){
+    return calEl.querySelector(`.cell.slot[data-date="${date}"][data-start="${start}"][data-end="${end}"][data-alldayrow="${allDayRow ? "1":"0"}"]`);
+  }
+  function findFirstTimeCellForDate(date){
+    // First regular time cell for this date: use the first slot with the earliest start in range
+    const earliest = `${pad2(range.start)}:00`;
+    const next = addMinutesToTime(earliest, HALF_HOUR);
+    return findCell(date, earliest, next, false);
+  }
+
+  // ====== Modal logic ======
+  function openModalForNew(ctx){
+    activeEditId = null;
+    deleteBtn.style.display = "none";
+
+    fTitle.value = "";
+    fDesc.value = "";
+    fAllDay.checked = !!ctx.allDay;
+
+    fDateLabel.textContent = `${humanDay(ctx.date)} (${ctx.date})`;
+    fStart.value = ctx.start;
+    fEnd.value = ctx.end;
+
+    timeRow.style.display = fAllDay.checked ? "none" : "";
+
+    openModal(`Nieuw item`);
+    fTitle.focus();
+  }
+
+  function openModalForEdit(id){
+    const ev = events.find(e => e.id === id);
+    if (!ev) return;
+
+    activeEditId = id;
+    deleteBtn.style.display = "";
+
+    fTitle.value = ev.title || "";
+    fDesc.value = ev.desc || "";
+    fAllDay.checked = !!ev.allDay;
+    fDateLabel.textContent = `${humanDay(ev.date)} (${ev.date})`;
+
+    fStart.value = ev.start || "09:00";
+    fEnd.value = ev.end || addMinutesToTime(fStart.value, HALF_HOUR);
+
+    timeRow.style.display = fAllDay.checked ? "none" : "";
+
+    openModal(`Bewerk item`);
+    fTitle.focus();
+  }
+
+  function openModal(title){
+    document.getElementById("modalTitle").textContent = title;
+    backdrop.style.display = "flex";
+    backdrop.setAttribute("aria-hidden","false");
+  }
+  function closeModal(){
+    backdrop.style.display = "none";
+    backdrop.setAttribute("aria-hidden","true");
+    activeEditId = null;
+    clickedContext = null;
+  }
+
+  function readForm(){
+    const date = extractDateFromLabel();
+    const allDay = !!fAllDay.checked;
+
+    let start = fStart.value || (clickedContext?.start ?? "09:00");
+    let end = fEnd.value || (clickedContext?.end ?? addMinutesToTime(start, HALF_HOUR));
+
+    // If user didn't touch times, we keep defaults based on clicked slot (already loaded).
+    // Sanity: if end <= start, fix to +30 minutes
+    if (!allDay && timeToMinutes(end) <= timeToMinutes(start)){
+      end = addMinutesToTime(start, HALF_HOUR);
+    }
+
+    return {
+      date,
+      allDay,
+      start: allDay ? "00:00" : start,
+      end: allDay ? "23:59" : end,
+      title: fTitle.value.trim(),
+      desc: fDesc.value.trim()
+    };
+  }
+
+  function extractDateFromLabel(){
+    // label contains "... (YYYY-MM-DD)"
+    const m = fDateLabel.textContent.match(/\((\d{4}-\d{2}-\d{2})\)/);
+    return m ? m[1] : fmtDate(weekStart);
+  }
+
+  // ====== Storage ======
+  function loadEvents(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    }catch{
+      return [];
+    }
+  }
+  function persist(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+  }
+
+  // ====== Export / Import ======
+  function exportJSON(){
+    const data = {
+      exportedAt: new Date().toISOString(),
+      version: 1,
+      events
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "wintrip-agenda-export.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function importJSON(e){
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const data = JSON.parse(String(reader.result || "{}"));
+        if (Array.isArray(data)) {
+          events = data;
+        } else if (data && Array.isArray(data.events)) {
+          events = data.events;
+        } else {
+          alert("Dit bestand lijkt geen agenda-export te zijn.");
+          return;
+        }
+        // minimal cleanup
+        events = events
+          .filter(x => x && x.date)
+          .map(x => ({
+            id: x.id || cryptoId(),
+            date: x.date,
+            allDay: !!x.allDay,
+            start: x.start || "09:00",
+            end: x.end || addMinutesToTime(x.start || "09:00", HALF_HOUR),
+            title: x.title || "",
+            desc: x.desc || ""
+          }));
+        persist();
+        // overlays might exist: remove them
+        document.querySelectorAll(".colOverlay").forEach(el => el.remove());
+        render();
+      }catch{
+        alert("Import mislukt: ongeldige JSON.");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // ====== Now line ======
+  function positionNowLine(){
+    // Only show if current date is in this week and within range
+    const now = new Date();
+    const today = fmtDate(now);
+    const ws = fmtDate(weekStart);
+    const we = fmtDate(addDays(weekStart, 6));
+    if (today < ws || today > we) {
+      nowLine.style.display = "none";
+      return;
+    }
+
+    const mins = now.getHours()*60 + now.getMinutes();
+    const startM = range.start * 60;
+    const endM = range.end * 60;
+
+    if (mins < startM || mins > endM){
+      nowLine.style.display = "none";
+      return;
+    }
+
+    const anchor = findFirstTimeCellForDate(today);
+    if (!anchor){
+      nowLine.style.display = "none";
+      return;
+    }
+
+    const calRect = calEl.getBoundingClientRect();
+    const firstRect = anchor.getBoundingClientRect();
+
+    const slotCount = buildSlots(range.start, range.end).length;
+    const cellH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cell-h'));
+    const height = slotCount * cellH;
+
+    const offset = ((mins - startM) / 30) * cellH;
+
+    nowLine.style.display = "";
+    nowLine.style.left = `${firstRect.left - calRect.left}px`;
+    nowLine.style.width = `${firstRect.width}px`;
+    nowLine.style.top = `${(firstRect.top - calRect.top) + offset}px`;
+    nowLine.style.zIndex = "5";
+  }
+
+  // ====== Helpers ======
+  function syncWeekInput(){
+    weekStartInput.value = fmtDate(weekStart);
+  }
+  function syncRangeSelect(){
+    const key = `${pad2(range.start)}-${pad2(range.end)}`;
+    const map = { "08-20":"08-20", "06-22":"06-22", "00-24":"00-24" };
+    rangeSelect.value = map[key] || "08-20";
+  }
+
+  function startOfWeek(d){
+    const x = new Date(d);
+    x.setHours(12,0,0,0);
+    const day = (x.getDay() + 6) % 7; // Mon=0
+    x.setDate(x.getDate() - day);
+    return x;
+  }
+  function addDays(d, n){
+    const x = new Date(d);
+    x.setDate(x.getDate() + n);
+    return x;
+  }
+  function fmtDate(d){
+    const x = (d instanceof Date) ? d : new Date(d);
+    const y = x.getFullYear();
+    const m = pad2(x.getMonth()+1);
+    const dd = pad2(x.getDate());
+    return `${y}-${m}-${dd}`;
+  }
+  function fmtHuman(d){
+    const x = (d instanceof Date) ? d : new Date(d);
+    return `${pad2(x.getDate())}-${pad2(x.getMonth()+1)}-${x.getFullYear()}`;
+  }
+  function isToday(d){
+    const n = new Date();
+    return fmtDate(d) === fmtDate(n);
+  }
+  function buildSlots(startHour, endHour){
+    const out = [];
+    for (let h = startHour; h < endHour; h++){
+      out.push(`${pad2(h)}:00`);
+      out.push(`${pad2(h)}:30`);
+    }
+    return out;
+  }
+  function pad2(n){ return String(n).padStart(2,"0"); }
+  function timeToMinutes(t){
+    const [h,m] = (t || "00:00").split(":").map(Number);
+    return (h*60) + (m||0);
+  }
+  function addMinutesToTime(t, mins){
+    const total = timeToMinutes(t) + mins;
+    const h = Math.floor((total % (24*60)) / 60);
+    const m = (total % 60);
+    return `${pad2(h)}:${pad2(m)}`;
+  }
+  function humanDay(iso){
+    const d = new Date(iso + "T12:00:00");
+    const idx = (d.getDay() + 6) % 7;
+    return DOW_LONG[idx];
+  }
+  function cryptoId(){
+    // small unique id; crypto.randomUUID when available
+    if (crypto && crypto.randomUUID) return crypto.randomUUID();
+    return "id_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
+  }
+  function escapeHtml(s){
+    return String(s ?? "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+})();
+</script>
+</body>
+</html>
