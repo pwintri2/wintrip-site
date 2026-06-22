@@ -2,7 +2,7 @@
 
 Static front-end pages for the Wintrip Projects dashboard and related member-management pages.
 
-![Wintrip dashboard afbeelding](https://github.com/user-attachments/assets/edf72bba-17ef-4e47-902d-a996a0f36460)
+![Wintrip dashboard image](https://github.com/user-attachments/assets/edf72bba-17ef-4e47-902d-a996a0f36460)
 
 The repository is primarily HTML, CSS, and JavaScript. It expects a hosting environment that serves the files from the repository root and provides the `/api/...` endpoints used by the dashboard, user, and member-management screens.
 
