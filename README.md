@@ -2,6 +2,8 @@
 
 Static front-end pages for the Wintrip Projects dashboard and related member-management pages.
 
+![Wintrip dashboard afbeelding](https://github.com/user-attachments/assets/edf72bba-17ef-4e47-902d-a996a0f36460)
+
 The repository is primarily HTML, CSS, and JavaScript. It expects a hosting environment that serves the files from the repository root and provides the `/api/...` endpoints used by the dashboard, user, and member-management screens.
 
 ## What is included
@@ -81,4 +83,3 @@ These endpoints are not implemented in this repository.
 - Shared dashboard styling lives in `assets/style.css`.
 - Member-specific styling and behavior live in `leden/leden.css` and `leden/leden.js`.
 - Avoid committing generated export folders or large bundles; `.gitignore` already excludes old export directories.
-
